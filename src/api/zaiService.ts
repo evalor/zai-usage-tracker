@@ -8,6 +8,9 @@ export interface TokenQuota {
   percentage: number;      // Usage percentage (0-100)
   nextResetTime?: number;  // Unix timestamp (ms) when quota resets
   actualTokens?: number;   // Actual tokens used in this window period
+  usage?: number;          // Total quota in credits (CREDIT_LIMIT.usage)
+  currentValue?: number;   // Credits consumed (CREDIT_LIMIT.currentValue)
+  remaining?: number;      // Credits remaining (CREDIT_LIMIT.remaining)
 }
 
 /**
@@ -57,12 +60,12 @@ export interface FetchResult {
 
 interface QuotaLimitResponse {
   limits?: Array<{
-    type: 'TOKENS_LIMIT' | 'TIME_LIMIT';
+    type: 'TOKENS_LIMIT' | 'TIME_LIMIT' | 'CREDIT_LIMIT';
     unit: number;            // 3=hour(s), 5=month(s), 6=week(s)
     number: number;          // Quantity of the time unit
     percentage: number;
     nextResetTime?: number;
-    // TIME_LIMIT specific fields
+    // CREDIT_LIMIT / TIME_LIMIT specific fields
     usage?: number;
     currentValue?: number;
     remaining?: number;
@@ -137,14 +140,17 @@ export class ZaiService {
         planLevel = quotaLimitResponse.level;
         if (quotaLimitResponse.limits) {
           for (const limit of quotaLimitResponse.limits) {
-            if (limit.type === 'TOKENS_LIMIT') {
+            if (limit.type === 'TOKENS_LIMIT' || limit.type === 'CREDIT_LIMIT') {
               tokenQuotas.push({
                 windowName: this.formatWindowName(limit.unit, limit.number),
                 unit: limit.unit,
                 number: limit.number,
                 percentage: limit.percentage || 0,
                 nextResetTime: limit.nextResetTime,
-                actualTokens: undefined // Will be filled below
+                usage: limit.usage,
+                currentValue: limit.currentValue,
+                remaining: limit.remaining,
+                actualTokens: undefined // Will be filled below for legacy TOKENS_LIMIT quotas
               });
             } else if (limit.type === 'TIME_LIMIT') {
               timeLimits.push({
@@ -158,6 +164,8 @@ export class ZaiService {
                 nextResetTime: limit.nextResetTime,
                 usageDetails: limit.usageDetails
               });
+            } else {
+              console.warn(`Z.ai Usage: unknown limit type "${limit.type}" skipped`);
             }
           }
         }
@@ -166,6 +174,11 @@ export class ZaiService {
       // Fetch actual usage for each token quota window based on its reset time
       const quotaUsageRequests = tokenQuotas.map(async (quota) => {
         if (!quota.nextResetTime || quota.percentage === 0) {
+          return null;
+        }
+
+        // Quotas with explicit credit values (CREDIT_LIMIT) already have real usage data
+        if (typeof quota.usage === 'number' && quota.usage > 0 && typeof quota.currentValue === 'number') {
           return null;
         }
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.6] - 2026-10-13
+
+### Fixed
+- **Quota Display Restored**: Z.ai switched the quota limit API from `TOKENS_LIMIT`/`TIME_LIMIT` to `CREDIT_LIMIT` entries, which the extension silently ignored - the tooltip no longer showed the 5-hour and weekly progress bars and the status bar showed "No quota data"
+  - Parser now accepts `CREDIT_LIMIT` quotas (`TOKENS_LIMIT`/`TIME_LIMIT` kept for backward compatibility)
+  - Tooltip and status bar now show real credit usage from the API (e.g. `326/12000 credits`) instead of token estimates
+  - Skips the extra per-window `model-usage` estimation calls when explicit credit values are available
+  - Unknown limit types are now logged to the console instead of being silently dropped
+
+### Changed
+- **API Documentation**: Updated `docs/API-DOCUMENTATION.md` to the `CREDIT_LIMIT` response format (verified 2026-10-13)
+
 ## [1.0.5] - 2026-02-22
 
 ### Changed

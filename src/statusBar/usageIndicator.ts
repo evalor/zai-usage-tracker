@@ -42,7 +42,9 @@ export class UsageIndicator {
     let text: string;
     if (displayQuota) {
       let usageInfo = '';
-      if (displayQuota.actualTokens && displayQuota.percentage > 0) {
+      if (displayQuota.usage && displayQuota.usage > 0 && displayQuota.currentValue !== undefined) {
+        usageInfo = ` · ${this.formatNumber(displayQuota.currentValue)} / ${this.formatNumber(displayQuota.usage)} credits`;
+      } else if (displayQuota.actualTokens && displayQuota.percentage > 0) {
         const estimatedLimit = Math.round(displayQuota.actualTokens / (displayQuota.percentage / 100));
         usageInfo = ` · ${this.formatNumber(displayQuota.actualTokens)} / ${this.formatNumber(estimatedLimit)} Tokens`;
       }
@@ -188,7 +190,10 @@ export class UsageIndicator {
           : 'No reset time';
         const progressBar = this.getProgressBar(quota.percentage);
         const quotaLabel = `${quota.windowName}`;
-        const percentageText = `<code>${quota.percentage}%</code>`;
+        const hasCredits = !!quota.usage && quota.usage > 0 && quota.currentValue !== undefined;
+        const percentageText = hasCredits
+          ? `<code>${quota.percentage}% · ${this.formatNumber(quota.currentValue!)}/${this.formatNumber(quota.usage!)}</code>`
+          : `<code>${quota.percentage}%</code>`;
 
         md.appendMarkdown(`| ${quotaLabel} | ${percentageText} | ${progressBar} | *${resetInfo}* |\n`);
       }
@@ -356,6 +361,11 @@ export class UsageIndicator {
     const estimates: string[] = [];
 
     for (const quota of this.currentUsage.tokenQuotas) {
+      // Skip quotas with explicit credit values - real numbers are shown in the table
+      if (quota.usage && quota.currentValue !== undefined) {
+        continue;
+      }
+
       // Skip if percentage is 0 to avoid division by zero, or if we don't have actual tokens
       if (quota.percentage === 0 || !quota.actualTokens || quota.actualTokens === 0) {
         continue;

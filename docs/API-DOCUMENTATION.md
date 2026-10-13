@@ -1,6 +1,6 @@
 # Z.AI Usage Monitoring API Documentation
 
-> **Status**: ✅ Verified (2026-02-21)  
+> **Status**: ✅ Verified (2026-10-13)  
 > **Base URL**: `https://api.z.ai`  
 > **API Type**: Internal/Private (from zai-org/zai-coding-plugins)
 
@@ -195,41 +195,24 @@ Accept-Language: en-US,en
   "data": {
     "limits": [
       {
-        "type": "TOKENS_LIMIT",
+        "type": "CREDIT_LIMIT",
         "unit": 3,
         "number": 5,
-        "percentage": 0
+        "usage": 12000,
+        "currentValue": 326,
+        "remaining": 11673,
+        "percentage": 2,
+        "nextResetTime": 1791918067232
       },
       {
-        "type": "TOKENS_LIMIT",
+        "type": "CREDIT_LIMIT",
         "unit": 6,
         "number": 1,
-        "percentage": 21,
-        "nextResetTime": 1772192697998
-      },
-      {
-        "type": "TIME_LIMIT",
-        "unit": 5,
-        "number": 1,
-        "usage": 1000,
-        "currentValue": 0,
-        "remaining": 1000,
-        "percentage": 0,
-        "nextResetTime": 1774007097985,
-        "usageDetails": [
-          {
-            "modelCode": "search-prime",
-            "usage": 0
-          },
-          {
-            "modelCode": "web-reader",
-            "usage": 0
-          },
-          {
-            "modelCode": "zread",
-            "usage": 0
-          }
-        ]
+        "usage": 60000,
+        "currentValue": 822,
+        "remaining": 59177,
+        "percentage": 1,
+        "nextResetTime": 1792478528983
       }
     ],
     "level": "pro"
@@ -252,15 +235,15 @@ Accept-Language: en-US,en
 
 | Field           | Type   | Description                                                            |
 | --------------- | ------ | ---------------------------------------------------------------------- |
-| `type`          | string | Limit type: `TOKENS_LIMIT` or `TIME_LIMIT`                             |
+| `type`          | string | Limit type: `CREDIT_LIMIT` (legacy: `TOKENS_LIMIT`, `TIME_LIMIT`)      |
 | `unit`          | number | Time unit code: `3` = hour(s), `5` = month(s), `6` = week(s)           |
 | `number`        | number | Quantity of the time unit (e.g., unit=3, number=5 means 5-hour window) |
 | `percentage`    | number | Usage percentage (0-100)                                               |
 | `nextResetTime` | number | Unix timestamp (ms) when quota resets                                  |
-| `usage`         | number | Total quota allowed (TIME_LIMIT only)                                  |
-| `currentValue`  | number | Current usage count (TIME_LIMIT only)                                  |
-| `remaining`     | number | Remaining quota (TIME_LIMIT only)                                      |
-| `usageDetails`  | array  | Per-model usage breakdown (TIME_LIMIT only)                            |
+| `usage`         | number | Total quota in credits (CREDIT_LIMIT)                                  |
+| `currentValue`  | number | Credits consumed (CREDIT_LIMIT)                                        |
+| `remaining`     | number | Credits remaining (CREDIT_LIMIT)                                       |
+| `usageDetails`  | array  | Per-model usage breakdown (TIME_LIMIT only, legacy)                    |
 
 ### Unit Type Mapping
 
@@ -272,8 +255,9 @@ Accept-Language: en-US,en
 
 ### Limit Type Explanation
 
-- **TOKENS_LIMIT**: Token usage quota with rolling time windows. The `unit` field defines the time unit (hour/week/month), and `number` specifies the quantity (e.g., unit=3/number=5 means a 5-hour rolling window, unit=6/number=1 means a 1-week window).
-- **TIME_LIMIT**: MCP tool usage quota with fixed reset periods (e.g., monthly limit with 1000 calls).
+- **CREDIT_LIMIT** *(current, since ~2026-10)*: Credit-based usage quota with rolling time windows. The `unit` field defines the time unit (hour/week/month), and `number` specifies the quantity (e.g., unit=3/number=5 means a 5-hour rolling window, unit=6/number=1 means a 1-week window). Returns the full quota (`usage`), consumed credits (`currentValue`), and remaining credits (`remaining`) directly, so no estimate from percentage is needed.
+- **TOKENS_LIMIT** *(legacy, no longer returned as of 2026-10)*: Token usage quota with rolling time windows. Only returned `percentage` (and sometimes `nextResetTime`); tokens used had to be estimated via `model-usage` queries. Still accepted by the extension parser for backward compatibility.
+- **TIME_LIMIT** *(legacy, no longer returned as of 2026-10)*: MCP tool usage quota with fixed reset periods (e.g., monthly limit with 1000 calls). Still accepted by the extension parser for backward compatibility.
 
 ---
 
@@ -425,7 +409,7 @@ interface QuotaLimitResponse {
   success: boolean;
   data: {
     limits: Array<{
-      type: 'TOKENS_LIMIT' | 'TIME_LIMIT';
+      type: 'TOKENS_LIMIT' | 'TIME_LIMIT' | 'CREDIT_LIMIT';
       unit: number;
       number: number;
       percentage: number;
@@ -447,6 +431,7 @@ interface QuotaLimitResponse {
 
 ## Version History
 
+- **2026-10-13**: Quota limit endpoint now returns `CREDIT_LIMIT` entries (with `usage`/`currentValue`/`remaining` in credits) instead of `TOKENS_LIMIT`/`TIME_LIMIT`. Verified against a Pro account.
 - **2026-02-21**: Initial documentation based on `zai-org/zai-coding-plugins` v1.x
 - Verified with API Key: `62e19ef7...` (redacted)
 - All 3 endpoints tested and confirmed working
